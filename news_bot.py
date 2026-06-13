@@ -1,9 +1,12 @@
 import os
 import requests
+import smtplib
+from email.mime.text import MIMEText
 from datetime import datetime
 
 news_api_key = os.environ["NEWS_API_KEY"]
-webhook_url = os.environ["WEIXIN_WEBHOOK"]
+qq_email = os.environ["QQ_EMAIL"]
+qq_auth_code = os.environ["QQ_AUTH_CODE"]
 
 def fetch_oman_news():
     print("正在搜索阿曼新闻...")
@@ -35,23 +38,22 @@ def fetch_oman_news():
 
     return result
 
-def send_to_weixin(content):
+def send_email(content):
     today = datetime.now().strftime("%Y年%m月%d日")
-    message = f"📰 【阿曼每日新闻】{today}\n\n{content}"
-    payload = {
-        "msgtype": "text",
-        "text": {"content": message}
-    }
-    response = requests.post(webhook_url, json=payload)
-    print(f"推送状态码: {response.status_code}")
-    print(f"推送响应: {response.text}")
-    if response.status_code == 200:
-        print("✅ 新闻推送成功！")
-    else:
-        print(f"❌ 推送失败")
+    subject = f"📰 阿曼每日新闻 {today}"
+    body = f"阿曼每日新闻 {today}\n\n{content}"
+
+    msg = MIMEText(body, "plain", "utf-8")
+    msg["From"] = qq_email
+    msg["To"] = qq_email
+    msg["Subject"] = subject
+
+    with smtplib.SMTP_SSL("smtp.qq.com", 465) as smtp:
+        smtp.login(qq_email, qq_auth_code)
+        smtp.sendmail(qq_email, qq_email, msg.as_string())
+    print("✅ 邮件发送成功！")
 
 if __name__ == "__main__":
     news = fetch_oman_news()
-    print("获取到的新闻：")
     print(news)
-    send_to_weixin(news)
+    send_email(news)
