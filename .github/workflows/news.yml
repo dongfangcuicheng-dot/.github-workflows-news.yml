@@ -20,8 +20,9 @@ jobs:
       - name: Install dependencies
         run: pip install requests
 
-      - name: Fetch and send news
+     - name: Fetch and send news
         env:
           NEWS_API_KEY: ${{ secrets.NEWS_API_KEY }}
-          WEIXIN_WEBHOOK: ${{ secrets.WEIXIN_WEBHOOK }}
+          QQ_EMAIL: ${{ secrets.QQ_EMAIL }}
+          QQ_AUTH_CODE: ${{ secrets.QQ_AUTH_CODE }}
         run: python news_bot.py
