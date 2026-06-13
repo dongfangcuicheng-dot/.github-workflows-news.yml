@@ -1,56 +1,49 @@
 import os
 import requests
-import anthropic
 from datetime import datetime
 
-# 初始化 Claude 客户端
-client = anthropic.Anthropic(api_key=os.environ["ANTHROPIC_API_KEY"])
+news_api_key = os.environ["NEWS_API_KEY"]
 webhook_url = os.environ["WEIXIN_WEBHOOK"]
 
 def fetch_oman_news():
-    """调用 Claude 搜索阿曼本地新闻"""
     print("正在搜索阿曼新闻...")
+    url = "https://newsapi.org/v2/everything"
+    params = {
+        "q": "Oman",
+        "language": "en",
+        "sortBy": "publishedAt",
+        "pageSize": 5,
+        "apiKey": news_api_key
+    }
+    response = requests.get(url, params=params)
+    data = response.json()
 
-    response = client.messages.create(
-        model="claude-sonnet-4-6",
-        max_tokens=1500,
-        tools=[{"type": "web_search_20250305", "name": "web_search"}],
-        messages=[
-            {
-                "role": "user",
-                "content": (
-                    "请搜索今天阿曼（Oman）的本地最新新闻，"
-                    "包括政治、经济、社会、天气等方面。"
-                    "用中文总结5条最重要的新闻，每条新闻包括标题和2-3句简介。"
-                    "格式要清晰易读。"
-                )
-            }
-        ]
-    )
+    if data.get("status") != "ok":
+        return f"获取新闻失败：{data.get('message', '未知错误')}"
 
-    # 提取文本内容
+    articles = data.get("articles", [])
+    if not articles:
+        return "今日暂无阿曼相关新闻。"
+
     result = ""
-    for block in response.content:
-        if block.type == "text":
-            result += block.text
+    for i, article in enumerate(articles, 1):
+        title = article.get("title", "无标题")
+        description = article.get("description", "无简介")
+        source = article.get("source", {}).get("name", "未知来源")
+        url_link = article.get("url", "")
+        result += f"{i}. 【{source}】{title}\n{description}\n{url_link}\n\n"
 
     return result
 
 def send_to_weixin(content):
-    """发送消息到企业微信机器人"""
     today = datetime.now().strftime("%Y年%m月%d日")
     message = f"📰 【阿曼每日新闻】{today}\n\n{content}"
-
     payload = {
         "msgtype": "text",
-        "text": {
-            "content": message
-        }
+        "text": {"content": message}
     }
-
     response = requests.post(webhook_url, json=payload)
     result = response.json()
-
     if result.get("errcode") == 0:
         print("✅ 新闻已成功推送到企业微信！")
     else:
@@ -58,6 +51,5 @@ def send_to_weixin(content):
 
 if __name__ == "__main__":
     news = fetch_oman_news()
-    print("获取到的新闻内容：")
     print(news)
     send_to_weixin(news)
