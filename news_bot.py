@@ -3,10 +3,32 @@ import requests
 import smtplib
 from email.mime.text import MIMEText
 from datetime import datetime
+from urllib.parse import quote
 
 news_api_key = os.environ["NEWS_API_KEY"]
 qq_email = os.environ["QQ_EMAIL"]
 qq_auth_code = os.environ["QQ_AUTH_CODE"]
+
+def translate(text):
+    """使用 Google 翻译免费接口"""
+    try:
+        url = "https://translate.googleapis.com/translate_a/single"
+        params = {
+            "client": "gtx",
+            "sl": "en",
+            "tl": "zh-CN",
+            "dt": "t",
+            "q": text
+        }
+        response = requests.get(url, params=params, timeout=10)
+        result = response.json()
+        translated = ""
+        for item in result[0]:
+            if item[0]:
+                translated += item[0]
+        return translated
+    except:
+        return text
 
 def fetch_oman_news():
     print("正在搜索阿曼新闻...")
@@ -30,18 +52,22 @@ def fetch_oman_news():
 
     result = ""
     for i, article in enumerate(articles, 1):
-        title = article.get("title", "无标题")
-        description = article.get("description") or "无简介"
+        title_en = article.get("title", "无标题")
+        desc_en = article.get("description") or ""
         source = article.get("source", {}).get("name", "未知来源")
         url_link = article.get("url", "")
-        result += f"{i}. 【{source}】{title}\n{description}\n{url_link}\n\n"
+
+        title_zh = translate(title_en)
+        desc_zh = translate(desc_en) if desc_en else "暂无详情"
+
+        result += f"{i}. 【{source}】{title_zh}\n{desc_zh}\n🔗 {url_link}\n\n"
 
     return result
 
 def send_email(content):
     today = datetime.now().strftime("%Y年%m月%d日")
     subject = f"📰 阿曼每日新闻 {today}"
-    body = f"阿曼每日新闻 {today}\n\n{content}"
+    body = f"阿曼每日新闻 · {today}\n{'='*30}\n\n{content}\n\n{'='*30}\n本邮件由自动程序发送"
 
     msg = MIMEText(body, "plain", "utf-8")
     msg["From"] = qq_email
