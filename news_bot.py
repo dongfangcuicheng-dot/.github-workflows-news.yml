@@ -28,7 +28,7 @@ def fetch_oman_news():
     result = ""
     for i, article in enumerate(articles, 1):
         title = article.get("title", "无标题")
-        description = article.get("description", "无简介")
+        description = article.get("description") or "无简介"
         source = article.get("source", {}).get("name", "未知来源")
         url_link = article.get("url", "")
         result += f"{i}. 【{source}】{title}\n{description}\n{url_link}\n\n"
@@ -43,13 +43,15 @@ def send_to_weixin(content):
         "text": {"content": message}
     }
     response = requests.post(webhook_url, json=payload)
-    result = response.json()
-    if result.get("errcode") == 0:
-        print("✅ 新闻已成功推送到企业微信！")
+    print(f"推送状态码: {response.status_code}")
+    print(f"推送响应: {response.text}")
+    if response.status_code == 200:
+        print("✅ 新闻推送成功！")
     else:
-        print(f"❌ 推送失败：{result}")
+        print(f"❌ 推送失败")
 
 if __name__ == "__main__":
     news = fetch_oman_news()
+    print("获取到的新闻：")
     print(news)
     send_to_weixin(news)
